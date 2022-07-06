@@ -7,34 +7,34 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, AsChangeset, Insertable, Queryable)]
 #[table_name = "message"]
 pub struct Message {
-    id: i32,
-    name: String,
-    body: String,
-    published: bool,
+    pub id: i32,
+    pub name: String,
+    pub body: String,
+    pub published: bool,
 }
 
 impl Message {
-    pub fn get_id(&self) -> i32 {
-        self.id
-    }
-    pub fn get_name(&self) -> &String {
-        &self.name
-    }
-    pub fn get_body(&self) -> &String {
-        &self.body
-    }
-
     pub fn get() -> Result<Vec<Message>, CustomError> {
         let conn = db::connection();
         let get_messages = message::table.load::<Message>(&conn)?;
         Ok(get_messages)
     }
 
-    pub fn insert(message: Message) -> Result<Message, CustomError> {
+    pub fn insert(&self) -> Result<Message, CustomError> {
         let conn = db::connection();
         let message = diesel::insert_into(message::table)
-            .values(message)
+            .values(self)
             .get_result(&conn)?;
         Ok(message)
+    }
+
+    pub fn clone(&self) -> Message {
+        let new_message = Message {
+            id: self.id,
+            name: self.name.to_string(),
+            body: self.body.to_string(),
+            published: self.published,
+        };
+        new_message
     }
 }
