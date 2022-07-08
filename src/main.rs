@@ -154,12 +154,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B
                             body: body,
                             published: true,
                         };
-                        thread::spawn(move || {
-                            audio_handlers::new_message_audio();
-                        });
 
                         app.messages.push(message.clone());
-                        message.insert().unwrap();
+                        thread::spawn(move || {
+                            message.insert().unwrap();
+                        });
                     }
                     KeyCode::Char(c) => {
                         app.input.push(c);
