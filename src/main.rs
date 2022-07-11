@@ -3,6 +3,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use events::producer;
 use model::{models::Message, route_handler};
 use rand::Rng;
 mod error_handler;
@@ -10,8 +11,12 @@ mod model {
     pub mod models;
     pub mod route_handler;
 }
+mod events {
+    pub mod producer;
+    pub mod utils;
+}
 mod ui_render_handler;
-// use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use ui_render_handler::{App, InputMode};
 pub mod audio_handlers;
 pub mod db;
 pub mod schema;
@@ -25,39 +30,9 @@ use tui::{
     Frame, Terminal,
 };
 use unicode_width::UnicodeWidthStr;
+
 #[macro_use]
 extern crate diesel;
-
-enum InputMode {
-    Normal,
-    Editing,
-    Name,
-}
-
-// TO DO
-// RIGHT NOW ITS NOT DELETING OLD MESSAGES SO ITS CUT OFF
-
-/// App holds the state of the application
-struct App {
-    /// Current value of the input box
-    input: String,
-    /// Current input mode
-    input_mode: InputMode,
-    /// History of recorded messages
-    messages: Vec<Message>,
-    user_name: Option<String>,
-}
-
-impl Default for App {
-    fn default() -> App {
-        App {
-            input: String::new(),
-            input_mode: InputMode::Normal,
-            messages: Vec::new(),
-            user_name: None,
-        }
-    }
-}
 
 #[actix_web::main]
 async fn inner_runtime() -> std::io::Result<()> {
@@ -103,6 +78,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B
     app.messages = ui_render_handler::remove_old_messages(Message::get().unwrap());
 
     loop {
+        app.messages = ui_render_handler::remove_old_messages(app.messages);
         terminal.draw(|f| ui(f, &app))?;
 
         if let Event::Key(key) = event::read()? {
@@ -147,6 +123,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B
                                 None => String::from("Anonymous"),
                             }
                         };
+
                         let mut rng = rand::thread_rng();
                         let message = Message {
                             id: rng.gen(),
@@ -154,7 +131,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B
                             body: body,
                             published: true,
                         };
-
+                        let new_body = &message.body;
+                        producer::produce_event(new_body.to_string())?;
                         app.messages.push(message.clone());
                         thread::spawn(move || {
                             message.insert().unwrap();
@@ -198,33 +176,33 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let (msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
-                Span::raw("Press "),
+                Span::raw("  📟 Press "),
                 Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to exit, Press "),
                 Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to start editing. Press "),
                 Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to edit your name. This is wiggle walkie talkie."),
+                Span::raw(" to edit your name. This is wiggle walkie talkie. 📟"),
             ],
             Style::default().add_modifier(Modifier::RAPID_BLINK),
         ),
         InputMode::Name => (
             vec![
-                Span::raw("Press "),
+                Span::raw("  Press "),
                 Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to remain anonymous, "),
                 Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record your name"),
+                Span::raw(" to record your name 📟"),
             ],
             Style::default(),
         ),
         InputMode::Editing => (
             vec![
-                Span::raw("Press "),
+                Span::raw("  Press "),
                 Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to stop editing, "),
                 Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record the message"),
+                Span::raw(" to record the message 📟"),
             ],
             Style::default(),
         ),
@@ -270,6 +248,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
             )
         }
     }
+
     //TO DO Check the syntax below. Look up .enumerate and .map
     let messages: Vec<ListItem> = app
         .messages
@@ -288,5 +267,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
                 .borders(Borders::ALL)
                 .title("Messages"),
         );
+
     f.render_widget(messages, chunks[2]);
 }
