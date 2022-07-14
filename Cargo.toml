@@ -26,4 +26,5 @@ rodio = "0.15.0"
 futures = "0.1"
 clap  = "2.33.0"
 rdkafka = {version = "0.28.0", features = ["ssl", "sasl"] }
+log = "0.4.17"
 

@@ -1812,6 +1812,7 @@ dependencies = [
  "diesel",
  "dotenv",
  "futures 0.1.31",
+ "log",
  "rand 0.7.3",
  "rdkafka",
  "rodio",

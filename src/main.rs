@@ -3,7 +3,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use events::producer;
+use events::{consumer, producer};
 use model::{models::Message, route_handler};
 use rand::Rng;
 mod error_handler;
@@ -12,6 +12,7 @@ mod model {
     pub mod route_handler;
 }
 mod events {
+    pub mod consumer;
     pub mod producer;
     pub mod utils;
 }
@@ -41,6 +42,7 @@ async fn inner_runtime() -> std::io::Result<()> {
         .run()
         .await
 }
+
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     thread::spawn(move || {
@@ -56,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // create app and run it
     let app = App::default();
 
-    let res = run_app(&mut terminal, app);
+    let res = run_app(&mut terminal, app).await;
 
     disable_raw_mode()?;
 
@@ -74,9 +76,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), Box<dyn Error>> {
+async fn run_app<B: Backend>(
+    terminal: &mut Terminal<B>,
+    mut app: App,
+) -> Result<(), Box<dyn Error>> {
     app.messages = ui_render_handler::remove_old_messages(Message::get().unwrap());
-
+    // thread::spawn(move || {
+    //     consumer::start_consuming();
+    // });
     loop {
         app.messages = ui_render_handler::remove_old_messages(app.messages);
         terminal.draw(|f| ui(f, &app))?;
@@ -131,11 +138,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B
                             body: body,
                             published: true,
                         };
-                        let new_body = &message.body;
-                        producer::produce_event(new_body.to_string())?;
+                        let new_body = message.body.to_string();
+
                         app.messages.push(message.clone());
                         thread::spawn(move || {
                             message.insert().unwrap();
+                        });
+                        thread::spawn(move || {
+                            producer::produce_event(new_body).unwrap();
                         });
                     }
                     KeyCode::Char(c) => {
