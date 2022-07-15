@@ -5,7 +5,7 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, List, ListItem, Paragraph},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -14,9 +14,6 @@ pub enum InputMode {
     Editing,
     Name,
 }
-
-// TO DO
-// RIGHT NOW ITS NOT DELETING OLD MESSAGES SO ITS CUT OFF
 
 /// App holds the state of the application
 pub struct App {
@@ -75,7 +72,6 @@ pub fn remove_old_messages(mut messages: Vec<Message>) -> Vec<Message> {
 // 1 = input box
 // 2 = messages
 // 3 = copyright
-
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -165,4 +161,25 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
             )
         }
     }
+
+    //TO DO Check the syntax below. Look up .enumerate and .map
+    let messages: Vec<ListItem> = app
+        .messages
+        .iter()
+        .enumerate()
+        .map(|(_i, m)| {
+            let content = vec![Spans::from(Span::raw(format!("{}: {}", m.name, m.body)))];
+            ListItem::new(content)
+        })
+        .collect();
+    let messages = List::new(messages)
+        .style(Style::default().fg(Color::LightCyan))
+        .block(
+            Block::default()
+                .style(Style::default().fg(Color::Blue))
+                .borders(Borders::ALL)
+                .title("Messages"),
+        );
+
+    f.render_widget(messages, chunks[2]);
 }
