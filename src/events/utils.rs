@@ -49,10 +49,11 @@ pub fn get_config_consumer() -> Result<StreamConsumer<CustomContext>, Box<dyn Er
     let sasl_mechanism = env::var("SASL_MECHANISM").expect("sasl mech must be set");
     let sasl_username = env::var("SASL_USERNAME").expect("sasl username must be set");
     let sasl_password = env::var("SASL_PASSWORD").expect("sasl password must be set");
+    let group_id = env::var("GROUP_ID").expect("group id must be set");
 
     let kafka_config: LoggingConsumer = ClientConfig::new()
         .set("bootstrap.servers", brokers)
-        .set("group.id", "lkc-6685j")
+        .set("group.id", group_id)
         .set("session.timeout.ms", "4500")
         .set("security.protocol", "SASL_SSL")
         .set("sasl.mechanisms", sasl_mechanism)
