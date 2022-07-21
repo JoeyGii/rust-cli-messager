@@ -1,9 +1,8 @@
-use crate::events::{consumer, producer, stream_channel};
+use crate::events::{consumer, mpsc_channel_handler, producer};
 use crate::model::models::Message;
 use crate::ui_render_handler;
 use crossterm::event::{self, Event, KeyCode};
 use rand::Rng;
-use std::sync::{Arc, Condvar, Mutex};
 use std::{error::Error, thread};
 use tui::{backend::Backend, Terminal};
 pub enum InputMode {
@@ -40,7 +39,7 @@ pub async fn run_app<B: Backend>(
     app.messages = ui_render_handler::remove_old_messages(Message::get().unwrap());
 
     //the sender is cloned into the consumer method to produce new records once kafka receives messages
-    let channel = stream_channel::NewChannel::create_channel();
+    let channel = mpsc_channel_handler::Channel::create_channel();
 
     //event consumer
     thread::spawn(move || {
@@ -49,7 +48,7 @@ pub async fn run_app<B: Backend>(
 
     //TO DO
     thread::spawn(move || {
-        stream_channel::publish_kafka_messages_to_ui(channel.receiver).unwrap();
+        mpsc_channel_handler::print_kafka_messages_to_ui(channel.receiver).unwrap();
     });
 
     loop {

@@ -11,8 +11,8 @@ mod model {
 }
 mod events {
     pub mod consumer;
+    pub mod mpsc_channel_handler;
     pub mod producer;
-    pub mod stream_channel;
     pub mod utils;
 }
 mod app_inputs;

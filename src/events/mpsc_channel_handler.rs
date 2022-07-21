@@ -2,15 +2,15 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::model::models::Message;
 
-pub struct NewChannel {
+pub struct Channel {
     pub sender: Sender<String>,
     pub receiver: Receiver<String>,
 }
-impl NewChannel {
-    pub fn create_channel() -> NewChannel {
+impl Channel {
+    pub fn create_channel() -> Channel {
         //event channel
         let (sender, receiver): (Sender<String>, Receiver<String>) = channel();
-        let channel = NewChannel {
+        let channel = Channel {
             sender: sender,
             receiver: receiver,
         };
@@ -19,7 +19,7 @@ impl NewChannel {
 }
 
 #[tokio::main]
-pub async fn publish_kafka_messages_to_ui(
+pub async fn print_kafka_messages_to_ui(
     receiver: Receiver<String>,
 ) -> Result<Message, Box<dyn std::error::Error>> {
     let received_payloads: Message = serde_json::from_str(&receiver.recv().unwrap()).unwrap();
