@@ -1,5 +1,7 @@
+use crate::app_inputs::{App, InputMode};
 use crate::model::models::Message;
 use chrono::prelude::*;
+
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -9,34 +11,6 @@ use tui::{
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
-pub enum InputMode {
-    Normal,
-    Editing,
-    Name,
-}
-
-/// App holds the state of the application
-pub struct App {
-    /// Current value of the input box
-    pub input: String,
-    /// Current input mode
-    pub input_mode: InputMode,
-    /// History of recorded messages
-    pub messages: Vec<Message>,
-    pub user_name: Option<String>,
-}
-
-impl Default for App {
-    fn default() -> App {
-        App {
-            input: String::new(),
-            input_mode: InputMode::Normal,
-            messages: Vec::new(),
-            user_name: None,
-        }
-    }
-}
-
 pub fn render_copyright<'a>() -> Paragraph<'a> {
     let get_current_year = || -> String {
         let current_date = chrono::Utc::now();

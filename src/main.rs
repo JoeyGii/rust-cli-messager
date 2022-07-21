@@ -3,7 +3,6 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use events::consumer;
 use model::route_handler;
 mod error_handler;
 mod model {
@@ -13,11 +12,12 @@ mod model {
 mod events {
     pub mod consumer;
     pub mod producer;
+    pub mod stream_channel;
     pub mod utils;
 }
 mod app_inputs;
 mod ui_render_handler;
-use ui_render_handler::App;
+use app_inputs::App;
 pub mod audio_handlers;
 pub mod db;
 pub mod schema;
@@ -40,10 +40,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //web server
     thread::spawn(move || {
         actix_runtime().unwrap();
-    });
-    //event consumer
-    thread::spawn(move || {
-        consumer::start_consuming();
     });
 
     enable_raw_mode()?;

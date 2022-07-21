@@ -31,7 +31,15 @@ impl Message {
     // pub fn incoming_message(&self) -> Result<Message, CustomError> { thread::spawn(move || {
     //     audio_handlers::new_message_audio();
     // });}
-
+    pub fn message_declaration() -> Message {
+        let new_message = Message {
+            id: 12345,
+            name: String::from("new_message"),
+            body: String::from("new_message body"),
+            published: false,
+        };
+        new_message
+    }
     pub fn clone(&self) -> Message {
         let new_message = Message {
             id: self.id,

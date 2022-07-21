@@ -1,12 +1,13 @@
-use log::{info, warn};
-
 use crate::events::utils;
+use log::{info, warn};
 use rdkafka::client::ClientContext;
-
 use rdkafka::consumer::{CommitMode, Consumer, ConsumerContext, Rebalance};
 use rdkafka::error::KafkaResult;
 use rdkafka::message::Message;
 use rdkafka::topic_partition_list::TopicPartitionList;
+use std::boxed::Box;
+use std::sync::mpsc::Sender;
+// use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 // A context can be used to change the behavior of producers and consumers by adding callbacks
 // that will be executed by librdkafka.
@@ -31,8 +32,11 @@ impl ConsumerContext for CustomContext {
 
 // A type alias with your custom consumer can be created for convenience.
 
-async fn consume_and_print(topics: &[&str]) {
-    let consumer = utils::get_config_consumer().unwrap();
+async fn consume_and_print(
+    topics: &[&str],
+    sender: Sender<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let consumer = utils::get_config_consumer()?;
 
     consumer
         .subscribe(&topics.to_vec())
@@ -52,16 +56,18 @@ async fn consume_and_print(topics: &[&str]) {
                 };
                 info!("key: '{:?}', payload: '{}', topic: {}, partition: {}, offset: {}, timestamp: {:?}",
                       m.key(), payload, m.topic(), m.partition(), m.offset(), m.timestamp());
-                println!("payload :{:?}", payload);
+                // println!("payload :{:?}", payload);
+                sender.send(payload.to_string()).unwrap();
                 consumer.commit_message(&m, CommitMode::Async).unwrap();
             }
         };
     }
 }
 #[tokio::main]
-pub async fn start_consuming() {
+pub async fn start_consuming(sender: Sender<String>) -> Result<(), Box<dyn std::error::Error>> {
     let topic = "rust-messages";
     let topics = [topic];
 
-    consume_and_print(&topics).await
+    consume_and_print(&topics, sender).await?;
+    Ok(())
 }

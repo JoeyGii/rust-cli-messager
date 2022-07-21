@@ -1,17 +1,56 @@
-use crate::events::producer;
+use crate::events::{consumer, producer, stream_channel};
 use crate::model::models::Message;
 use crate::ui_render_handler;
-use crate::ui_render_handler::{App, InputMode};
 use crossterm::event::{self, Event, KeyCode};
 use rand::Rng;
+use std::sync::{Arc, Condvar, Mutex};
 use std::{error::Error, thread};
 use tui::{backend::Backend, Terminal};
+pub enum InputMode {
+    Normal,
+    Editing,
+    Name,
+}
 
+/// App holds the state of the application
+pub struct App {
+    /// Current value of the input box
+    pub input: String,
+    /// Current input mode
+    pub input_mode: InputMode,
+    /// History of recorded messages
+    pub messages: Vec<Message>,
+    pub user_name: Option<String>,
+}
+
+impl Default for App {
+    fn default() -> App {
+        App {
+            input: String::new(),
+            input_mode: InputMode::Normal,
+            messages: Vec::new(),
+            user_name: None,
+        }
+    }
+}
 pub async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
 ) -> Result<(), Box<dyn Error>> {
     app.messages = ui_render_handler::remove_old_messages(Message::get().unwrap());
+
+    //the sender is cloned into the consumer method to produce new records once kafka receives messages
+    let channel = stream_channel::NewChannel::create_channel();
+
+    //event consumer
+    thread::spawn(move || {
+        consumer::start_consuming(channel.sender.clone()).unwrap();
+    });
+
+    //TO DO
+    thread::spawn(move || {
+        stream_channel::publish_kafka_messages_to_ui(channel.receiver).unwrap();
+    });
 
     loop {
         app.messages = ui_render_handler::remove_old_messages(app.messages);
@@ -67,8 +106,9 @@ pub async fn run_app<B: Backend>(
                             body: body,
                             published: true,
                         };
+
                         if message.body != "" {
-                            let new_body = message.body.to_string();
+                            let new_body = serde_json::to_string(&message).unwrap();
 
                             app.messages.push(message.clone());
                             thread::spawn(move || {
@@ -77,6 +117,7 @@ pub async fn run_app<B: Backend>(
                             thread::spawn(move || {
                                 producer::produce_event(new_body).unwrap();
                             });
+                            thread::spawn(move || {});
                         }
                     }
                     KeyCode::Char(c) => {
