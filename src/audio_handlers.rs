@@ -13,7 +13,6 @@ pub fn new_message_audio() {
         .play_raw(source.convert_samples())
         .map_err(|err| println!("{:?}", err))
         .ok();
-
     // The sound plays in a separate audio thread,
     // so we need to keep the main thread alive while it's playing.
     std::thread::sleep(std::time::Duration::from_secs(1));

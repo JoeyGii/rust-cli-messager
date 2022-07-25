@@ -1,5 +1,4 @@
 use crate::events::utils;
-
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::boxed::Box;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -9,7 +8,6 @@ pub async fn produce_event(message: String) -> Result<(), Box<dyn std::error::Er
     let producer: &FutureProducer = &config.create().expect("producer error");
     let topic = String::from("rust-messages");
     let i = 0_usize;
-
     let _result = producer
         .send_result(
             FutureRecord::to(&topic)
