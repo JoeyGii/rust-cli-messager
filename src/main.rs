@@ -3,7 +3,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use model::route_handler;
+use model::{models, route_handler};
 mod error_handler;
 mod model {
     pub mod models;
@@ -47,11 +47,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
+    let user = models::WigglesUser::default();
     // create app and run it
     let app = App::default();
-
-    let res = app_inputs::run_app(&mut terminal, app).await;
+    let res = app_inputs::run_app(&mut terminal, app, user);
 
     disable_raw_mode()?;
 

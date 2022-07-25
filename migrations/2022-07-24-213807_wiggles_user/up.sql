@@ -1,0 +1,6 @@
+CREATE TABLE wiggles_user (
+  id SERIAL ,
+  name VARCHAR NOT NULL,
+  password VARCHAR NOT NULL,
+  email VARCHAR NOT NULL PRIMARY KEY
+)

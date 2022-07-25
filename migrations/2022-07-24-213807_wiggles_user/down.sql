@@ -1,0 +1,1 @@
+DROP TABLE wiggles_user

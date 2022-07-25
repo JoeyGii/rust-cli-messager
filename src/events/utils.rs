@@ -3,7 +3,6 @@ use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
 use rdkafka::consumer::{ConsumerContext, Rebalance, StreamConsumer};
 use rdkafka::error::KafkaResult;
 use rdkafka::{ClientContext, TopicPartitionList};
-
 use std::env::{self};
 use std::error::Error;
 
@@ -21,9 +20,7 @@ pub fn get_config_producer() -> Result<ClientConfig, Box<dyn Error>> {
     Ok(kafka_config)
 }
 pub struct CustomContext;
-
 impl ClientContext for CustomContext {}
-
 impl ConsumerContext for CustomContext {
     fn pre_rebalance(&self, rebalance: &Rebalance) {
         info!("Pre rebalance {:?}", rebalance);
@@ -37,6 +34,7 @@ impl ConsumerContext for CustomContext {
         info!("Committing offsets: {:?}", result);
     }
 }
+
 struct EnvVars {
     brokers: String,
     sasl_mechanism: String,
@@ -44,7 +42,6 @@ struct EnvVars {
     sasl_password: String,
     group_id: String,
 }
-
 impl EnvVars {
     fn get_env_vars() -> EnvVars {
         let env_vars = EnvVars {
@@ -74,6 +71,5 @@ pub fn get_config_consumer() -> Result<StreamConsumer<CustomContext>, Box<dyn Er
         .set_log_level(RDKafkaLogLevel::Debug)
         .create_with_context(context)
         .expect("Consumer creation failed");
-
     Ok(kafka_config)
 }

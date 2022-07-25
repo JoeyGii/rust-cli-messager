@@ -1,6 +1,8 @@
-use crate::events::{consumer, mpsc_channel_handler, producer};
-use crate::model::models::Message;
+use crate::events::{consumer, producer};
+use crate::model::models::{Message, WigglesUser};
 use crate::ui_render_handler;
+use crossbeam_channel::TryRecvError::{self};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use crossterm::event::{self, Event, KeyCode};
 use rand::Rng;
 use std::{error::Error, thread};
@@ -8,7 +10,11 @@ use tui::{backend::Backend, Terminal};
 pub enum InputMode {
     Normal,
     Editing,
-    Name,
+    Login,
+}
+pub enum LoginInput {
+    UserName,
+    Password,
 }
 
 /// App holds the state of the application
@@ -19,7 +25,7 @@ pub struct App {
     pub input_mode: InputMode,
     /// History of recorded messages
     pub messages: Vec<Message>,
-    pub user_name: Option<String>,
+    pub login_input_mode: LoginInput,
 }
 
 impl Default for App {
@@ -28,30 +34,24 @@ impl Default for App {
             input: String::new(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
-            user_name: None,
+            login_input_mode: LoginInput::UserName,
         }
     }
 }
-pub async fn run_app<B: Backend>(
+pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
+    mut user: WigglesUser,
 ) -> Result<(), Box<dyn Error>> {
     app.messages = ui_render_handler::remove_old_messages(Message::get().unwrap());
-
-    //the sender is cloned into the consumer method to produce new records once kafka receives messages
-    let channel = mpsc_channel_handler::Channel::create_channel();
-
-    //event consumer
-    thread::spawn(move || {
-        consumer::start_consuming(channel.sender.clone()).unwrap();
-    });
-
-    //TO DO
-    thread::spawn(move || {
-        mpsc_channel_handler::print_kafka_messages_to_ui(channel.receiver).unwrap();
-    });
+    let (sender, receiver): (Sender<String>, Receiver<String>) = unbounded();
+    thread::Builder::new()
+        .name("kafka consumer thread".to_string())
+        .spawn(move || consumer::start_consuming(sender.clone()).unwrap())
+        .unwrap();
 
     loop {
+        //event consumer
         app.messages = ui_render_handler::remove_old_messages(app.messages);
         terminal.draw(|f| ui_render_handler::ui(f, &app))?;
 
@@ -61,20 +61,25 @@ pub async fn run_app<B: Backend>(
                     KeyCode::Char('e') => {
                         app.input_mode = InputMode::Editing;
                     }
-                    KeyCode::Char('n') => {
-                        app.input_mode = InputMode::Name;
+                    KeyCode::Char('l') => {
+                        app.input_mode = InputMode::Login;
                     }
                     KeyCode::Char('q') => {
                         return Ok(());
                     }
                     _ => {}
                 },
-                InputMode::Name => match key.code {
-                    KeyCode::Enter => {
-                        let name: String = app.input.drain(..).collect();
-                        app.user_name = Some(name);
-                        app.input_mode = InputMode::Editing;
-                    }
+                InputMode::Login => match key.code {
+                    KeyCode::Enter => match app.login_input_mode {
+                        LoginInput::UserName => {
+                            user.name = app.input.drain(..).collect();
+                            app.login_input_mode = LoginInput::Password;
+                        }
+                        LoginInput::Password => {
+                            user.password = app.input.drain(..).collect();
+                            app.input_mode = InputMode::Editing;
+                        }
+                    },
                     KeyCode::Backspace => {
                         app.input.pop();
                     }
@@ -91,17 +96,11 @@ pub async fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         //Where Message struct is instantiated
                         let body = app.input.drain(..).collect();
-                        let name = |n: &Option<String>| -> String {
-                            match n {
-                                Some(n) => n.to_string(),
-                                None => String::from("Anonymous"),
-                            }
-                        };
 
                         let mut rng = rand::thread_rng();
                         let message = Message {
                             id: rng.gen(),
-                            name: name(&app.user_name),
+                            name: user.name.to_string(),
                             body: body,
                             published: true,
                         };
@@ -132,5 +131,12 @@ pub async fn run_app<B: Backend>(
                 },
             }
         }
+        let message_receiver: Result<String, TryRecvError> = receiver.try_recv();
+        match message_receiver {
+            Ok(message_receiver) => app
+                .messages
+                .push(serde_json::from_str(&message_receiver).unwrap()),
+            _ => (),
+        };
     }
 }
